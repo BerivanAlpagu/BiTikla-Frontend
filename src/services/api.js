@@ -16,6 +16,24 @@ export const restaurantService = {
   getActives: () => api.get('/restaurant/actives'),
 };
 
+// Kategoriler
+export const categoryService = {
+  getAll: () => api.get('/category'),
+  getByRestaurant: (restaurantId) => api.get(`/category/byrestaurant/${restaurantId}`),
+  create: (data) => api.post('/category', data),
+  update: (data) => api.put('/category', data),
+};
+
+// Menü Ürünleri
+export const menuItemService = {
+  getAll: () => api.get('/menuitem'),
+  getById: (id) => api.get(`/menuitem/${id}`),
+  getByCategory: (categoryId) => api.get(`/menuitem/bycategory/${categoryId}`),
+  getByRestaurant: (restaurantId) => api.get(`/menuitem/byrestaurant/${restaurantId}`),
+  create: (data) => api.post('/menuitem', data),
+  update: (data) => api.put('/menuitem', data),
+};
+
 // Siparişler
 export const orderService = {
   getAll: () => api.get('/order'),
