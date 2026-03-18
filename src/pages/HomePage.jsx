@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { restaurantService } from '../services/api';
 import { useNavigate } from 'react-router-dom';
@@ -6,7 +6,18 @@ import { useNavigate } from 'react-router-dom';
 function HomePage() {
   const [restaurants, setRestaurants] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+
+  const filteredRestaurants = useMemo(() => {
+    if (!searchQuery.trim()) return restaurants;
+    const lowerQuery = searchQuery.toLowerCase();
+    return restaurants.filter(
+      (r) =>
+        r.name.toLowerCase().includes(lowerQuery) ||
+        (r.description && r.description.toLowerCase().includes(lowerQuery))
+    );
+  }, [restaurants, searchQuery]);
 
   useEffect(() => {
     restaurantService.getActives()
@@ -56,12 +67,19 @@ function HomePage() {
         <input
           style={styles.searchInput}
           placeholder="🔍 Restoran veya yemek ara..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
         />
       </motion.div>
 
       {/* Restoranlar */}
       <div style={styles.grid}>
-        {restaurants.map((restaurant, index) => (
+        {filteredRestaurants.length === 0 && !loading && (
+          <p style={{ textAlign: 'center', gridColumn: '1 / -1', color: '#666' }}>
+            Aramanıza uygun restoran bulunamadı.
+          </p>
+        )}
+        {filteredRestaurants.map((restaurant, index) => (
           <motion.div
             key={restaurant.id}
             initial={{ opacity: 0, y: 30 }}

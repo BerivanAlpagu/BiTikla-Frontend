@@ -4,20 +4,45 @@ import { restaurantService, orderService, courierService } from '../services/api
 
 function AdminPage() {
   const [stats, setStats] = useState({ restaurants: 0, orders: 0, couriers: 0 });
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = () => {
+    setLoading(true);
     Promise.all([
       restaurantService.getAll(),
       orderService.getAll(),
       courierService.getAll(),
-    ]).then(([restaurants, orders, couriers]) => {
+    ]).then(([restRes, ordRes, courRes]) => {
       setStats({
-        restaurants: restaurants.data.length,
-        orders: orders.data.length,
-        couriers: couriers.data.length,
+        restaurants: restRes.data.length,
+        orders: ordRes.data.length,
+        couriers: courRes.data.length,
       });
+      // Siparişleri tarihe göre yeniden eskiye sıralayalım
+      const sortedOrders = ordRes.data.sort((a, b) => b.id - a.id);
+      setOrders(sortedOrders);
+      setLoading(false);
+    }).catch((err) => {
+      console.error(err);
+      setLoading(false);
     });
-  }, []);
+  };
+
+  const handleStatusChange = async (orderId, newStatus) => {
+    try {
+      await orderService.updateStatus(orderId, { status: newStatus });
+      alert(`Sipariş #${orderId} durumu güncellendi: ${newStatus}`);
+      fetchData(); // Listeyi yenile
+    } catch (error) {
+      console.error(error);
+      alert('Durum güncellenemedi!');
+    }
+  };
 
   const cards = [
     { title: 'Restoranlar', value: stats.restaurants, icon: '🏪', color: '#ff6b35' },
@@ -57,6 +82,63 @@ function AdminPage() {
           </motion.div>
         ))}
       </div>
+
+      <div style={styles.tableContainer}>
+        <h2 style={styles.tableTitle}>📄 Son Siparişler</h2>
+        {loading ? (
+          <p>Yükleniyor...</p>
+        ) : (
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={styles.th}>ID</th>
+                <th style={styles.th}>Kullanıcı</th>
+                <th style={styles.th}>Tutar</th>
+                <th style={styles.th}>Adres</th>
+                <th style={styles.th}>Durum</th>
+                <th style={styles.th}>İşlem</th>
+              </tr>
+            </thead>
+            <tbody>
+              {orders.map((order) => (
+                <tr key={order.id} style={styles.tr}>
+                  <td style={styles.td}>#{order.id}</td>
+                  <td style={styles.td}>Kullanıcı {order.appUserId || '?'}</td>
+                  <td style={styles.td}>{order.totalPrice ? `${order.totalPrice}₺` : '-'}</td>
+                  <td style={styles.td}>{order.deliveryAddress || '-'}</td>
+                  <td style={styles.td}>
+                    <span style={{
+                      ...styles.statusBadge,
+                      backgroundColor: order.status === 'Delivered' ? '#00b894' : 
+                                       order.status === 'OnTheWay' ? '#0984e3' :
+                                       order.status === 'Preparing' ? '#fdcb6e' : '#ff7675'
+                    }}>
+                      {order.status || 'Pending'}
+                    </span>
+                  </td>
+                  <td style={styles.td}>
+                    <select
+                      value={order.status || 'Pending'}
+                      onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                      style={styles.select}
+                    >
+                      <option value="Pending">Pending (Bekliyor)</option>
+                      <option value="Preparing">Preparing (Hazırlanıyor)</option>
+                      <option value="OnTheWay">OnTheWay (Yolda)</option>
+                      <option value="Delivered">Delivered (Teslim Edildi)</option>
+                    </select>
+                  </td>
+                </tr>
+              ))}
+              {orders.length === 0 && (
+                <tr>
+                  <td colSpan="6" style={{ ...styles.td, textAlign: 'center' }}>Sipariş bulunamadı.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -69,6 +151,14 @@ const styles = {
   cardIcon: { fontSize: '2.5rem', marginBottom: '15px' },
   cardValue: { fontSize: '2.5rem', fontWeight: 'bold', margin: '0 0 8px' },
   cardTitle: { color: '#636e72', margin: 0, fontSize: '1rem' },
+  tableContainer: { marginTop: '40px', backgroundColor: 'white', padding: '20px', borderRadius: '16px', boxShadow: '0 4px 15px rgba(0,0,0,0.08)' },
+  tableTitle: { marginTop: 0, color: '#2d3436' },
+  table: { width: '100%', borderCollapse: 'collapse', textAlign: 'left' },
+  th: { padding: '12px 15px', borderBottom: '2px solid #eee', color: '#636e72', fontWeight: 'bold' },
+  td: { padding: '12px 15px', borderBottom: '1px solid #eee', color: '#2d3436' },
+  tr: { transition: 'background-color 0.2s', ':hover': { backgroundColor: '#f9f9f9' } },
+  statusBadge: { padding: '4px 8px', borderRadius: '12px', color: 'white', fontSize: '0.85rem', fontWeight: 'bold' },
+  select: { padding: '6px', borderRadius: '6px', border: '1px solid #ddd', outline: 'none' },
 };
 
 export default AdminPage;

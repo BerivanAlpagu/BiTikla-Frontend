@@ -9,6 +9,14 @@ const api = axios.create({
   },
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 // Restoranlar
 export const restaurantService = {
   getAll: () => api.get('/restaurant'),
@@ -49,11 +57,12 @@ export const courierService = {
   getAvailable: () => api.get('/courier/available'),
 };
 
-// Kullanıcılar
+// Kullanıcılar / Auth
 export const userService = {
   getAll: () => api.get('/appuser'),
   getById: (id) => api.get(`/appuser/${id}`),
-  create: (data) => api.post('/appuser', data),
+  create: (data) => api.post('/appuser', data), // register için kullanılabilir
+  login: (data) => api.post('/appuser/login', data), // login endpoint'i varsayıldı
 };
 
 export default api;

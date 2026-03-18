@@ -1,12 +1,55 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
+import { orderService } from '../services/api';
+
+// Leaflet ikon sorunu fix
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
+  iconUrl: require('leaflet/dist/images/marker-icon.png'),
+  shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
+});
 
 function OrderPage() {
   const { id } = useParams();
-  const [orderStatus, setOrderStatus] = useState('Preparing');
+  const navigate = useNavigate();
+  const [order, setOrder] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    const fetchOrder = () => {
+      orderService.getById(id)
+        .then(res => {
+          setOrder(res.data);
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setError(true);
+          setLoading(false);
+        });
+    };
+
+    fetchOrder(); // Initial fetch
+    
+    // Yalnızca sipariş Teslim Edilmediyse pole et
+    const interval = setInterval(() => {
+      setOrder(prev => {
+        if (prev?.status === 'Delivered') {
+          clearInterval(interval);
+        }
+        return prev;
+      });
+      fetchOrder();
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [id]);
 
   const statuses = ['Pending', 'Preparing', 'OnTheWay', 'Delivered'];
   const statusLabels = {
@@ -16,9 +59,30 @@ function OrderPage() {
     Delivered: '✅ Teslim Edildi',
   };
 
+  if (loading) return (
+    <div style={styles.container}>
+      <p style={{ textAlign: 'center', marginTop: '40px' }}>Sipariş yükleniyor...</p>
+    </div>
+  );
+
+  if (error || !order) return (
+    <div style={styles.container}>
+      <p style={{ textAlign: 'center', marginTop: '40px', color: 'red' }}>Sipariş bulunamadı.</p>
+      <div style={{ textAlign: 'center' }}>
+        <button onClick={() => navigate('/')} style={{ padding: '10px 20px', cursor: 'pointer' }}>
+          Ana Sayfaya Dön
+        </button>
+      </div>
+    </div>
+  );
+
+  const currentStatus = order.status || 'Pending';
+  const lat = order.deliveryLatitude || 41.0082;
+  const lng = order.deliveryLongitude || 28.9784;
+
   return (
     <div style={styles.container}>
-      <h1 style={styles.title}>Sipariş Takip</h1>
+      <h1 style={styles.title}>Sipariş Takip #{order.id}</h1>
 
       {/* Durum adımları */}
       <div style={styles.statusContainer}>
@@ -27,10 +91,10 @@ function OrderPage() {
             key={status}
             style={{
               ...styles.statusStep,
-              backgroundColor: statuses.indexOf(orderStatus) >= index ? '#ff6b35' : '#e0e0e0',
+              backgroundColor: statuses.indexOf(currentStatus) >= index ? '#ff6b35' : '#e0e0e0',
             }}
             animate={{
-              scale: orderStatus === status ? 1.2 : 1,
+              scale: currentStatus === status ? 1.2 : 1,
             }}
           >
             <span style={styles.statusLabel}>{statusLabels[status]}</span>
@@ -41,15 +105,15 @@ function OrderPage() {
       {/* Harita */}
       <div style={styles.mapContainer}>
         <MapContainer
-          center={[41.0082, 28.9784]}
+          center={[lat, lng]}
           zoom={13}
           style={{ height: '400px', width: '100%', borderRadius: '16px' }}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          <Marker position={[41.0082, 28.9784]}>
-            <Popup>Kurye burada 🛵</Popup>
+          <Marker position={[lat, lng]}>
+            <Popup>Teslimat adresi 📍</Popup>
           </Marker>
         </MapContainer>
       </div>

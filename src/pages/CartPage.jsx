@@ -1,11 +1,16 @@
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
+import { orderService } from '../services/api';
 
 function CartPage() {
   const navigate = useNavigate();
-  const { cart, addToCart, removeFromCart, totalPrice, totalItems, clearCart } = useCart();
+  const { cart, restaurantId, addToCart, removeFromCart, totalPrice, totalItems, clearCart } = useCart();
+  const { user, isAuthenticated } = useAuth();
   const savedAddress = JSON.parse(localStorage.getItem('userAddress'));
+  const [ordering, setOrdering] = useState(false);
 
   if (cart.length === 0) return (
     <div style={styles.empty}>
@@ -81,7 +86,7 @@ function CartPage() {
               <div style={styles.quantity}>
                 <button style={styles.qBtn} onClick={() => removeFromCart(item.id)}>−</button>
                 <span style={styles.qNum}>{item.quantity}</span>
-                <button style={styles.qBtn} onClick={() => addToCart(item)}>+</button>
+                <button style={styles.qBtn} onClick={() => addToCart(item, restaurantId)}>+</button>
               </div>
             </motion.div>
           ))}
@@ -102,15 +107,44 @@ function CartPage() {
             backgroundColor: savedAddress ? '#ff6b35' : '#ccc',
             cursor: savedAddress ? 'pointer' : 'not-allowed',
           }}
-          onClick={() => {
+          disabled={ordering}
+          onClick={async () => {
+            if (!isAuthenticated) {
+              alert('Sipariş vermek için lütfen giriş yapın veya kayıt olun.');
+              navigate('/login');
+              return;
+            }
             if (!savedAddress) {
               alert('Lütfen önce adres ekleyin!');
               return;
             }
-            navigate('/order/1');
+            setOrdering(true);
+            try {
+              const orderData = {
+                restaurantId,
+                appUserId: user?.id || 1, // Düşme ihtimaline karşı fallback
+                totalPrice,
+                orderStatus: 'Pending',
+                deliveryAddress: savedAddress.fullAddress,
+                deliveryLatitude: savedAddress.latitude,
+                deliveryLongitude: savedAddress.longitude,
+                items: cart.map(item => ({
+                  menuItemId: item.id,
+                  quantity: item.quantity,
+                  unitPrice: item.price,
+                })),
+              };
+              const res = await orderService.create(orderData);
+              clearCart();
+              navigate(`/order/${res.data.id}`);
+            } catch (err) {
+              console.error(err);
+              alert('Sipariş oluşturulurken bir hata oluştu!');
+              setOrdering(false);
+            }
           }}
         >
-          Siparişi Onayla ✅
+          {ordering ? 'Sipariş Oluşturuluyor...' : 'Siparişi Onayla ✅'}
         </motion.button>
       </motion.div>
     </div>
