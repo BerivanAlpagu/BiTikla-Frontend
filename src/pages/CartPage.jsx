@@ -128,7 +128,7 @@ function CartPage() {
                 deliveryAddress: savedAddress.fullAddress,
                 deliveryLatitude: savedAddress.latitude,
                 deliveryLongitude: savedAddress.longitude,
-                items: cart.map(item => ({
+                orderDetails: cart.map(item => ({
                   menuItemId: item.id,
                   quantity: item.quantity,
                   unitPrice: item.price,

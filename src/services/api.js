@@ -46,6 +46,7 @@ export const menuItemService = {
 export const orderService = {
   getAll: () => api.get('/order'),
   getById: (id) => api.get(`/order/${id}`),
+  getByUserId: (userId) => api.get(`/order/user/${userId}`),
   create: (data) => api.post('/order', data),
   updateStatus: (id, status) => api.put(`/order/${id}`, status),
 };

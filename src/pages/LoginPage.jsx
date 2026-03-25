@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
+import { userService } from '../services/api';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
@@ -17,15 +18,10 @@ function LoginPage() {
     setError('');
     
     try {
-      // Backendde gercek login endpointi varsayılarak yapıldı
-      // Eğer backendde JWT dönüyorsa, token ve user objesi alınır.
-      // const res = await userService.login({ email, password });
-      // login(res.data.user, res.data.token);
+      const res = await userService.login({ email, password });
       
-      // Şimdilik mock login:
-      const mockUser = { id: 1, name: 'Test User', email };
-      const mockToken = 'mock-jwt-token-123';
-      login(mockUser, mockToken);
+      // The backend returns the user object directly for now
+      login(res.data, 'dummy-token-123');
       
       navigate('/');
     } catch (err) {
